@@ -1,14 +1,10 @@
-# SOCSpider
-
-SOCSpider is a service that scrapes, processes, and stores data from WebSOC. It allows viewing of historical enrollment data on [AntAlmanac](https://antalmanac.com).
-
-## Configuration
-In this repository, it is designed to be deployed to AWS Lambda and run once a day, sending the data to a MongoDB instance running on [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
+This is a core AntAlmanac service that collects class enrollment information from WebSOC. 
+In this repository, it is designed to be deployed to AWS Lambda and run once a day, logging the results to a remote MongoDB.
 However, it is trivial to extract the code to run however you want it.
-It uses [Serverless Framework](https://www.serverless.com/) for easy deployment management.
+It uses the serverless framework for easy deployment management.
 
-## For AntAlmanac contributors:
-### Please see internal AntAlmanac documentation for details.
+To deploy, you'll need a serverless account and AWS credentials loaded on your environment.
+
 To test locally, use pip to install the requirements from `requirements.txt`:
 
 `pip install -r requirements.txt`
@@ -25,11 +21,8 @@ Then, set up these environment variables in a file called `.env`:
     SOCSPIDER_ENROLLMENT_COLLECTION_NAME = 
 ```
 
-
-# Deploy
-To deploy, you'll need a Serverless account and the right AWS credentials loaded onto your environment. 
-
 Deploy: 
 ```
 $ serverless deploy
 ```
+

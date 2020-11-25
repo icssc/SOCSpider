@@ -5,6 +5,14 @@ from course import Course
 
 BASE_URL = 'https://www.reg.uci.edu/perl/WebSoc?'
 
+def average_chunk_size(chunks: list) -> float:
+    """
+        function to get average chunk size for analysis
+    """
+    sizes = [len(chunk) for chunk in chunks]
+    return sum(sizes) / len(sizes)
+
+
 def _createAllChunks(_course_codes, _interval) -> [[int]]:
 		"""
 			Takes all codes and chunks them into lists that fit our interval
@@ -31,6 +39,7 @@ def _createAllChunks(_course_codes, _interval) -> [[int]]:
 			chunks.append(_course_codes[start[0]:end[0] + 1])
 
 		return chunks
+
 
 def _departmentCourses(url) -> [Course]:
     """
