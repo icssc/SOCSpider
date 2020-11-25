@@ -1,6 +1,16 @@
-org: antalmanac
+org: devsvdevsdevs
 service: socspider
-app: socspider
+app: antalmanac
+
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-python-requirements
+
+
+custom:
+  dotenv:
+    required:
+      file: true
 
 provider:
   name: aws
@@ -9,25 +19,12 @@ provider:
   profile: socspider
   # Max timeout because this script runs for a while (several minutes)
   timeout: 900
-  stage: dev
-  # stage: prod
-  environment:
-    SOCSPIDER_TERM: ${param:SOCSPIDER_TERM}
-    SOCSPIDER_MONGODB_URI: ${param:SOCSPIDER_MONGODB_URI}
-    SOCSPIDER_MONGODB_USERNAME: ${param:SOCSPIDER_MONGODB_USERNAME}
-    SOCSPIDER_MONGODB_PASSWORD: ${param:SOCSPIDER_MONGODB_PASSWORD}
-    SOCSPIDER_DB_NAME: ${param:SOCSPIDER_DB_NAME}
-    SOCSPIDER_CHUNKS_COLLECTION_NAME: ${param:SOCSPIDER_CHUNKS_COLLECTION_NAME}
-    SOCSPIDER_ENROLLMENT_COLLECTION_NAME: ${param:SOCSPIDER_ENROLLMENT_COLLECTION_NAME}
-
-plugins:
-  - serverless-python-requirements
+  stage: ${env:STAGE}
 
 package:
  exclude:
    - node_modules/**
    - .vscode/**
-   - exclude-me-dir/**
    - .env
 
 functions:

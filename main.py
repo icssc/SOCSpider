@@ -60,10 +60,10 @@ def main(event, context):
 
         chunk_info = {'chunks': chunks, 'date': current_time.isoformat()}
 
-        collection.replace_one({'chunks': { '$exists': True}}, chunk_info)
+        collection.replace_one({}, chunk_info, upsert=True)
         print('Chunks update complete')
 
-    chunks = collection.find_one()[CHUNKS_COLLECTION_NAME]
+    chunks = collection.find_one()['chunks']
     spider = SOCSpider(TERM, chunks)
 
     print('Retrieving course data')
