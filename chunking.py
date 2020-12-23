@@ -77,7 +77,7 @@ def _departmentURLs(term) -> [str]:
         yield BASE_URL + urllib.parse.urlencode(urlFields)
 
 
-def getAllCodes(term, includeDiscussions = False) -> [int]:
+def getAllCodes(term) -> [int]:
 		"""
 			Generates all of the codes currently on WebSoc
 		"""
@@ -86,8 +86,7 @@ def getAllCodes(term, includeDiscussions = False) -> [int]:
 
 		for url in _departmentURLs(term):
 			for course in _departmentCourses(url):
-				if(course.units != '0' or includeDiscussions):
-					codes.append(int(course.code))
+				codes.append(int(course.code))
 
 		return codes
 
@@ -162,5 +161,18 @@ def optimizeCodeInterval(_course_codes: [int], _interval: int, _limit: int) -> i
 
 def getChunks(term):
     course_codes = sorted(getAllCodes(term))
-    interval = optimizeCodeInterval(course_codes, 900, 900)
-    return _createAllChunks(course_codes, interval)
+
+    chunks = []
+    inner_list = []
+    counter = 0
+
+    for code in course_codes:
+        inner_list.append(code)
+        counter += 1
+
+        if counter == 900:
+            counter = 0
+            chunks.append(inner_list)
+            inner_list = []
+
+    return chunks
