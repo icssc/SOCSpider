@@ -1,10 +1,16 @@
 import pymongo
 import os
 import chunking
-
+import pytz
 from datetime import datetime
+
 from socspider import SOCSpider
 from course import Course
+
+def get_pst_date():
+    date = datetime.now(tz=pytz.utc)
+    date = date.astimezone(pytz.timezone('US/Pacific'))
+    return date.strftime("%Y-%m-%d")
 
 def term_to_readable(term: str) -> (str, str):
     year_code = term[-2:]
@@ -26,7 +32,7 @@ def get_update_object(course: Course, term: str) -> pymongo.UpdateOne:
 
     doc = {'quarter': quarter, 'year': year, 'sectionCode': course.code}
     
-    data = {'date': datetime.today().strftime('%Y-%m-%d'), 
+    data = {'date': get_pst_date(), 
             'maxCapacity': course.max,
             'numCurrentlyEnrolled': course.enr,
             'numOnWaitlist': course.wl,
