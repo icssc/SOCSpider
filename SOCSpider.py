@@ -8,8 +8,7 @@ import bs4 as bs
 import urllib.request
 from math import floor, sqrt
 from course import Course
-
-BASE_URL = 'https://www.reg.uci.edu/perl/WebSoc?'
+from constants import _WEBSOC
 
 class SOCSpider:
 	"""
@@ -35,9 +34,10 @@ class SOCSpider:
 				('YearTerm', self.term),
 				('ShowFinals', '1'),
 				('ShowComments', '1'),
-				('CourseCodes', f'{chunk[0]}-{chunk[len(chunk) - 1]}')
+				('CourseCodes', f'{chunk[0]}-{chunk[-1]}'),
+				("CancelledCourses", 'Include')
 			]
-			url = BASE_URL + urllib.parse.urlencode(urlFields)
+			url = f'{_WEBSOC}?{urllib.parse.urlencode(urlFields)}'
 
 			with urllib.request.urlopen(url) as sauce:
 				soup = bs.BeautifulSoup(sauce, "html.parser")
@@ -49,5 +49,5 @@ class SOCSpider:
 				cells = [ td.string for td in row.find_all("td") ]
 
 				# Convert this row to a Course object
-				if(len(cells) in {16, 17}):
+				if(len(cells) in {15, 16, 17}):
 					yield Course(cells)

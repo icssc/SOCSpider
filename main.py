@@ -2,14 +2,14 @@ import pymongo
 import os
 import chunking
 import pytz
+import enrollment_periods
 from datetime import datetime
 
 from socspider import SOCSpider
 from course import Course
 
 def get_pst_date():
-    date = datetime.now(tz=pytz.utc)
-    date = date.astimezone(pytz.timezone('US/Pacific'))
+    date = datetime.now(pytz.timezone('US/Pacific'))
     return date.strftime("%Y-%m-%d")
 
 def term_to_readable(term: str) -> (str, str):
@@ -50,6 +50,11 @@ def main(event, context):
     CHUNKS_COLLECTION_NAME = os.environ.get('SOCSPIDER_CHUNKS_COLLECTION_NAME')
     ENROLLMENT_COLLECTION_NAME = os.environ.get('SOCSPIDER_ENROLLMENT_COLLECTION_NAME')
 
+    # Do not run if the day is not within the current enrollment period
+    current_term = ' '.join(term_to_readable(TERM))
+    if not enrollment_periods.should_run(current_term):
+        return
+
     connection_uri = MONGODB_URI.format(MONGODB_USERNAME, MONGODB_PASSWORD, sep='\r\n')
 
     db = pymongo.MongoClient(connection_uri)[DB_NAME]
@@ -62,7 +67,7 @@ def main(event, context):
     # If the chunks document doesn't exist, or hasn't been updated in a week, recreate the chunks
     if should_update_chunks:
         print('Updating chunks')
-        chunks = chunking.getChunks(TERM)
+        chunks = chunking.get_chunks(TERM)
 
         chunk_info = {'chunks': chunks, 'date': current_time.isoformat()}
 
@@ -77,6 +82,7 @@ def main(event, context):
     updates = [get_update_object(course, TERM) for course in spider.getAllCourses()]
 
     print('Updating data')
+    print(f'Data added for {len(updates)} course')
     db[ENROLLMENT_COLLECTION_NAME].bulk_write(updates)
     print('Data update complete')
 

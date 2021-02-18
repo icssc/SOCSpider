@@ -2,165 +2,112 @@ import bs4 as bs
 import urllib.request
 from math import floor, sqrt
 from course import Course
+from constants import _WEBSOC
+import time
 
-BASE_URL = 'https://www.reg.uci.edu/perl/WebSoc?'
-
-def average_chunk_size(chunks: list) -> float:
+def get_chunks_for(course_codes: [str], all_course_codes: [[str]]) -> [[str]]:
     """
-        function to get average chunk size for analysis
+        Creates an optimized list of chunks to perform a search with given a list of course codes and chunks
     """
-    sizes = [len(chunk) for chunk in chunks]
-    return sum(sizes) / len(sizes)
+    course_codes = sorted(course_codes)
+    code_index_map = dict()
+
+    for i in range(len(all_course_codes)):
+        code_index_map[all_course_codes[i]] = i
+
+    final_chunks = []
+    current_chunk = []
+
+    for code in course_codes:
+        if len(current_chunk) == 0:
+            current_chunk.append(code)
+        else:
+            first_code = current_chunk[0]
+
+            if int(code_index_map[code]) - int(code_index_map[first_code]) < 900:
+                current_chunk.append(code)
+            else:
+                final_chunks.append(current_chunk)
+                current_chunk = [code]
+
+    if len(current_chunk) != 0:
+        final_chunks.append(current_chunk)
+
+    batched_chunks = []
+    current_batch = []
+
+    for l in final_chunks:
+        if len(current_batch) + len(l) <= 8:
+            current_batch.extend(l)
+        else:
+            batched_chunks.append(l)
+
+        if len(current_batch) == 8:
+            batched_chunks.append(current_batch)
+            current_batch = []
+
+    if len(current_batch) != 0:
+        batched_chunks.append(current_batch)
+
+    return batched_chunks
 
 
-def _createAllChunks(_course_codes, _interval) -> [[int]]:
-		"""
-			Takes all codes and chunks them into lists that fit our interval
-		"""
-		chunks = []
-
-		start = None
-		end = None
-		# I don't remember the explanation but it works
-		# TODO: refactor and make code readable
-		for idx, code in enumerate(_course_codes):
-			code = int(code)
-
-			if start is None:
-				end = start = (idx, code)
-			elif code - start[1] <= _interval:
-				end = (idx, code)
-			else:
-				chunks.append(_course_codes[start[0]:idx])
-				start = end = (idx, code)
-
-		# capture final chunk if not caught by for loop
-		if end[0] == len(_course_codes) - 1:
-			chunks.append(_course_codes[start[0]:end[0] + 1])
-
-		return chunks
-
-
-def _departmentCourses(url) -> [Course]:
+def _get_courses_in_page(url) -> [Course]:
     """
         Given a WebSoc search URL, creates a generator over each Course in the results page
     """
-    
+
     # Get the page that lists the courses in a table
     with urllib.request.urlopen(url) as source:
         soup = bs.BeautifulSoup(source, "html.parser")
-    
+
     # Iterate over each course, which is each row in the results
     for row in soup.find_all("tr"):
         # Get the values of each column
-        cells = [ td.string for td in row.find_all("td") ]
+        cells = [td.string for td in row.find_all("td")]
 
         # Convert this row to a Course object
-        if(len(cells) in {16, 17}):
+        if(len(cells) in {15, 16, 17}):
             yield Course(cells)
 
 
-def _departmentURLs(term) -> [str]:
+def _get_department_urls(term) -> [str]:
     """
         Creates a generator over the URLs of each department's WebSOC search results page
     """
 
     # Get the page that lists all the departments
-    with urllib.request.urlopen(BASE_URL) as source:
+    with urllib.request.urlopen(_WEBSOC) as source:
         soup = bs.BeautifulSoup(source, "html.parser")
 
     # Extract the department codes from the department menu
     for deptOption in soup.find("select", {"name": "Dept"}).find_all("option"):
-        urlFields = [ ("YearTerm", term), ("ShowFinals", '1'), ("ShowComments", '1'), ("Dept", deptOption.get("value")) ]
-        
+        urlFields = [("YearTerm", term), 
+                    ("ShowFinals", '1'),
+                    ("ShowComments", '1'), 
+                    ("Dept", deptOption.get("value")), 
+                    ("CancelledCourses", 'Include')]
+
         # Encode the URL that shows courses in this department
-        yield BASE_URL + urllib.parse.urlencode(urlFields)
+        yield f'{_WEBSOC}?{urllib.parse.urlencode(urlFields)}'
 
 
-def getAllCodes(term) -> [int]:
-		"""
-			Generates all of the codes currently on WebSoc
-		"""
+def get_all_codes(term) -> [str]:
+        """
+            Generates all of the codes currently on WebSoc
+        """
 
-		codes = []
+        codes = []
 
-		for url in _departmentURLs(term):
-			for course in _departmentCourses(url):
-				codes.append(int(course.code))
+        for url in _get_department_urls(term):
+            time.sleep(1)
+            for course in _get_courses_in_page(url):
+                codes.append(course.code)
 
-		return codes
+        return codes
 
-
-def _end_interval(interval: int, start_idx: int, code: int, codes: [int]) -> (int, int):
-    """
-        Grabs the end of an interval from a specific starting code
-
-        Args:
-            interval: interval we are testing against
-            start_idx: start idx of our interval
-            code: starting code of our interval
-            codes: list of all codes
-    """
-    # grab the absolutely highest code in the list
-    max_idx = len(codes) - 1
-    max_code = codes[-1]
-
-    # create potential end code of interval
-    end_of_interval = code + interval
-    if end_of_interval > max_code:
-        return max_code, max_idx 
-    else:
-        # search for the highest code below the end interval
-        for idx, c in enumerate(codes):
-            if c >= end_of_interval:
-                return codes[idx - 1], idx - 1
-    # TODO: Clean up function, return conditional on if's that should always be reached but not edge case tested throughly, potential bugs
-    assert False, 'Interval function broke'
-
-
-def optimizeCodeInterval(_course_codes: [int], _interval: int, _limit: int) -> int:
-    """
-        This function takes all codes and finds an interval that keeps the amount of codes on any interval less than the max amount of returned entries on a websoc search
-
-        For any code A_i and code B_i the total amount of codes from A_i to B_i < websoc search max (900)
-
-        Linear function:
-        > length(interval[A_i, B_i]) < 900
-    """
-    # take the sqrt of the total amount of codes to search at a determined safe but faster rate
-    increment = floor( sqrt(len(_course_codes)) )
-    good_interval = True
-
-    # keep checking increments until we have found optimal interval for increments of 1
-    while increment > 0:
-        while good_interval:
-            # Iterate every code
-            for idx, code in enumerate(_course_codes):
-                # Grab the end of the interval and test our linear function is true
-                end_of_interval = _end_interval(_interval, idx, code, _course_codes)
-                if len(_course_codes[idx:end_of_interval[1]]) >= 900:
-                    good_interval = False
-                    break
-            # If we found a bad interval we want to roll back to the last good interval
-            if good_interval:
-                _interval += increment
-            else:
-                _interval -= increment
-                break
-        # If our current "optimal" interval is less that then limit reset to the limit
-        # The limit is the bare minimum optimal interval
-        if _interval < _limit:
-            _interval = _limit
-        # Round down and subtract 1 for when increment reaches 1
-        # sqrt(1) = 1, force below 1 to break loop increment
-        increment = floor(sqrt(increment)) - 1
-        # reset to good interval and to continue searching
-        good_interval = True
-
-    return _interval
-
-def getChunks(term):
-    course_codes = sorted(getAllCodes(term))
+def get_chunks(term) -> [[str]]:
+    course_codes = sorted(get_all_codes(term))
 
     chunks = []
     inner_list = []
