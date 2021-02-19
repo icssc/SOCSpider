@@ -1,11 +1,10 @@
-org: devsvdevsdevs
-service: socspider
+org: antalmanac
 app: antalmanac
+service: socspider
 
 plugins:
   - serverless-dotenv-plugin
   - serverless-python-requirements
-
 
 custom:
   dotenv:
