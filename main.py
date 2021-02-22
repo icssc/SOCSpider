@@ -8,9 +8,11 @@ from datetime import datetime
 from socspider import SOCSpider
 from course import Course
 
+
 def get_pst_date():
-    date = datetime.now(pytz.timezone('US/Pacific'))
+    date = datetime.now(pytz.timezone('America/Los_Angeles'))
     return date.strftime("%Y-%m-%d")
+
 
 def term_to_readable(term: str) -> (str, str):
     year_code = term[-2:]
@@ -27,12 +29,13 @@ def term_to_readable(term: str) -> (str, str):
 
     return (year, quarter)
 
+
 def get_update_object(course: Course, term: str) -> pymongo.UpdateOne:
     year, quarter = term_to_readable(term)
 
     doc = {'quarter': quarter, 'year': year, 'sectionCode': course.code}
-    
-    data = {'date': get_pst_date(), 
+
+    data = {'date': get_pst_date(),
             'maxCapacity': course.max,
             'numCurrentlyEnrolled': course.enr,
             'numOnWaitlist': course.wl,
@@ -40,6 +43,7 @@ def get_update_object(course: Course, term: str) -> pymongo.UpdateOne:
             'restrictions': course.res}
 
     return pymongo.UpdateOne(doc, {'$push': {'data': data}}, upsert=True)
+
 
 def main(event, context):
     TERM = os.environ.get('SOCSPIDER_TERM')
@@ -62,7 +66,8 @@ def main(event, context):
 
     current_time = datetime.now()
 
-    should_update_chunks = collection.count() == 0 or (current_time - datetime.fromisoformat(collection.find_one()['date'])).days >= 7
+    should_update_chunks = collection.count() == 0 or \
+        (current_time - datetime.fromisoformat(collection.find_one()['date'])).days >= 7
 
     # If the chunks document doesn't exist, or hasn't been updated in a week, recreate the chunks
     if should_update_chunks:
@@ -82,12 +87,13 @@ def main(event, context):
     updates = [get_update_object(course, TERM) for course in spider.getAllCourses()]
 
     print('Updating data')
-    print(f'Data added for {len(updates)} course')
+    print(f'Data added for {len(updates)} courses')
     db[ENROLLMENT_COLLECTION_NAME].bulk_write(updates)
     print('Data update complete')
 
+
 if __name__ == "__main__":
     from dotenv import load_dotenv
+
     load_dotenv(verbose=True)
     main(None, None)
-
