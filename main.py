@@ -5,7 +5,6 @@ import pytz
 import enrollment_periods
 from datetime import datetime
 
-from socspider import SOCSpider
 from course import Course
 
 
@@ -51,7 +50,6 @@ def main(event, context):
     MONGODB_USERNAME = os.environ.get('SOCSPIDER_MONGODB_USERNAME')
     MONGODB_PASSWORD = os.environ.get('SOCSPIDER_MONGODB_PASSWORD')
     DB_NAME = os.environ.get('SOCSPIDER_DB_NAME')
-    CHUNKS_COLLECTION_NAME = os.environ.get('SOCSPIDER_CHUNKS_COLLECTION_NAME')
     ENROLLMENT_COLLECTION_NAME = os.environ.get('SOCSPIDER_ENROLLMENT_COLLECTION_NAME')
 
     # Do not run if the day is not within the current enrollment period
@@ -62,29 +60,10 @@ def main(event, context):
     connection_uri = MONGODB_URI.format(MONGODB_USERNAME, MONGODB_PASSWORD, sep='\r\n')
 
     db = pymongo.MongoClient(connection_uri)[DB_NAME]
-    collection = db[CHUNKS_COLLECTION_NAME]
-
-    current_time = datetime.now()
-
-    should_update_chunks = collection.count() == 0 or \
-        (current_time - datetime.fromisoformat(collection.find_one()['date'])).days >= 7
-
-    # If the chunks document doesn't exist, or hasn't been updated in a week, recreate the chunks
-    if should_update_chunks:
-        print('Updating chunks')
-        chunks = chunking.get_chunks(TERM)
-
-        chunk_info = {'chunks': chunks, 'date': current_time.isoformat()}
-
-        collection.replace_one({}, chunk_info, upsert=True)
-        print('Chunks update complete')
-
-    chunks = collection.find_one()['chunks']
-    spider = SOCSpider(TERM, chunks)
 
     print('Retrieving course data')
 
-    updates = [get_update_object(course, TERM) for course in spider.getAllCourses()]
+    updates = [get_update_object(course, TERM) for course in chunking.yield_all_courses(TERM)]
 
     print('Updating data')
     print(f'Data added for {len(updates)} courses')

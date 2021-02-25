@@ -127,3 +127,10 @@ def get_all_codes(term) -> [str]:
             codes.append(course.code)
 
     return codes
+
+
+def yield_all_courses(term) -> [str]:
+     for url in _get_department_urls(term):
+        time.sleep(1)
+        for course in _get_courses_in_page(url):
+            yield course
