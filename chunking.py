@@ -4,6 +4,8 @@ from course import Course
 from constants import WEBSOC
 import time
 
+class EmptyWebSocSearchResponse(Exception):
+    pass
 
 def get_chunks_for(course_codes: [str], all_course_codes: [[str]]) -> [[str]]:
     """
@@ -83,6 +85,9 @@ def _get_courses_in_page(url) -> [Course]:
     with urllib.request.urlopen(url) as source:
         soup = bs.BeautifulSoup(source, "html.parser")
 
+    if source.headers['Content-Length'] == '0':
+        raise EmptyWebSocSearchResponse()
+
     # Iterate over each course, which is each row in the results
     for row in soup.find_all("tr"):
         # Get the values of each column
@@ -131,6 +136,6 @@ def get_all_codes(term) -> [str]:
 
 def yield_all_courses(term) -> [str]:
      for url in _get_department_urls(term):
-        time.sleep(1)
+        # time.sleep(1)
         for course in _get_courses_in_page(url):
             yield course
